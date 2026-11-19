@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SSE Streaming Test — gsai-agent</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0f1117;
+            --surface: #1a1d27;
+            --surface2: #252836;
+            --border: #2e3245;
+            --text: #e4e6ef;
+            --text-dim: #8b8fa3;
+            --accent: #6c63ff;
+            --accent-glow: rgba(108,99,255,0.25);
+            --green: #34d399;
+            --red: #f87171;
+            --orange: #fbbf24;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+        h1 {
+            text-align: center;
+            font-size: 1.6rem;
+            background: linear-gradient(135deg, var(--accent), #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: .5rem;
+        }
+        .subtitle {
+            text-align: center;
+            color: var(--text-dim);
+            font-size: .85rem;
+            margin-bottom: 2rem;
+        }
+        .tabs {
+            display: flex;
+            gap: .5rem;
+            justify-content: center;
+            margin-bottom: 1.5rem;
+        }
+        .tab {
+            padding: .6rem 1.4rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--surface);
+            color: var(--text-dim);
+            cursor: pointer;
+            font-size: .85rem;
+            font-weight: 500;
+            transition: all .2s;
+        }
+        .tab:hover { border-color: var(--accent); color: var(--text); }
+        .tab.active {
+            background: var(--accent);
+            color: #fff;
+            border-color: var(--accent);
+            box-shadow: 0 0 20px var(--accent-glow);
+        }
+        .panel { display: none; }
+        .panel.active { display: block; }
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            max-width: 800px;
+            margin: 0 auto 1.5rem;
+        }
+        .card-title {
+            font-size: .75rem;
+            text-transform: uppercase;
+            letter-spacing: .05em;
+            color: var(--text-dim);
+            margin-bottom: .8rem;
+        }
+        label {
+            display: block;
+            font-size: .8rem;
+            color: var(--text-dim);
+            margin-bottom: .3rem;
+        }
+        input, textarea {
+            width: 100%;
+            padding: .6rem .8rem;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-family: inherit;
+            font-size: .85rem;
+            margin-bottom: .8rem;
+            outline: none;
+            transition: border-color .2s;
+        }
+        input:focus, textarea:focus { border-color: var(--accent); }
+        textarea { resize: vertical; min-height: 80px; }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: .4rem;
+            padding: .65rem 1.4rem;
+            border: none;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: .85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all .2s;
+        }
+        .btn-primary {
+            background: var(--accent);
+            color: #fff;
+        }
+        .btn-primary:hover { filter: brightness(1.15); box-shadow: 0 0 16px var(--accent-glow); }
+        .btn-primary:disabled { opacity:.4; cursor:not-allowed; }
+        .btn-danger {
+            background: rgba(248,113,113,.15);
+            color: var(--red);
+            border: 1px solid rgba(248,113,113,.25);
+        }
+        .stream-box {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1.2rem;
+            min-height: 120px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-size: .9rem;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .stream-box .cursor-blink {
+            display: inline-block;
+            width: 2px;
+            height: 1em;
+            background: var(--accent);
+            margin-left: 1px;
+            animation: blink .7s step-end infinite;
+            vertical-align: text-bottom;
+        }
+        @keyframes blink { 50% { opacity:0; } }
+        .meta-box {
+            margin-top: .8rem;
+            padding: .8rem;
+            background: var(--surface2);
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: .75rem;
+            color: var(--green);
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .status-bar {
+            display: flex;
+            align-items: center;
+            gap: .5rem;
+            margin-bottom: .8rem;
+            font-size: .8rem;
+        }
+        .status-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--text-dim);
+        }
+        .status-dot.streaming { background: var(--orange); animation: pulse 1s infinite; }
+        .status-dot.done { background: var(--green); }
+        .status-dot.error { background: var(--red); }
+        @keyframes pulse { 50% { opacity:.5; } }
+        .actions { display:flex; gap:.5rem; margin-top:.8rem; }
+        .qa-flow-info {
+            background: var(--surface2);
+            padding: .8rem 1rem;
+            border-radius: 8px;
+            font-size: .8rem;
+            color: var(--text-dim);
+            margin-bottom: 1rem;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <h1>🚀 SSE Streaming Test</h1>
+    <p class="subtitle">Real-time token streaming visualization for gsai-agent API</p>
+
+    <div class="tabs">
+        <div class="tab active" onclick="switchTab('chat')">💬 /chat/stream</div>
+        <div class="tab" onclick="switchTab('qa-start')">>🎓 /qa/start/stream</div>
+        <div class="tab" onclick="switchTab('qa-answer')">📝 /qa/answer/stream</div>
+    </div>
+
+    <!-- Chat Stream Panel -->
+    <div id="panel-chat" class="panel active">
+        <div class="card">
+            <div class="card-title">Input</div>
+            <label>Query</label>
+            <input type="text" id="chat-query" value="Xin chào thầy, em muốn hỏi về vòng lặp trong Python" />
+            <div class="actions">
+                <button class="btn btn-primary" id="chat-btn" onclick="testChatStream()">▶ Send Stream</button>
+                <button class="btn btn-danger" id="chat-stop" onclick="stopStream('chat')" style="display:none">⏹ Stop</button>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-title">Streamed Response</div>
+            <div class="status-bar">
+                <div class="status-dot" id="chat-status-dot"></div>
+                <span id="chat-status">Ready</span>
+            </div>
+            <div class="stream-box" id="chat-output"></div>
+            <div class="meta-box" id="chat-meta" style="display:none"></div>
+        </div>
+    </div>
+
+    <!-- QA Start Panel -->
+    <div id="panel-qa-start" class="panel">
+        <div class="card">
+            <div class="card-title">Input — will use sample question bank</div>
+            <label>Max Questions (default: 5)</label>
+            <input type="number" id="qa-start-max" value="2" min="1" max="10" style="width:100px;margin-bottom:.8rem" />
+            <label>Project Summary</label>
+            <textarea id="qa-start-summary">Đây là project quản lý sinh viên sử dụng Python Flask. Có các chức năng CRUD cho sinh viên, điểm số và khóa học. Sử dụng SQLAlchemy ORM và PostgreSQL database.</textarea>
+            <div class="actions">
+                <button class="btn btn-primary" id="qa-start-btn" onclick="testQAStartStream()">▶ Start Session Stream</button>
+                <button class="btn btn-danger" id="qa-start-stop" onclick="stopStream('qa-start')" style="display:none">⏹ Stop</button>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-title">Streamed Response</div>
+            <div class="status-bar">
+                <div class="status-dot" id="qa-start-status-dot"></div>
+                <span id="qa-start-status">Ready</span>
+            </div>
+            <div class="stream-box" id="qa-start-output"></div>
+            <div class="meta-box" id="qa-start-meta" style="display:none"></div>
+        </div>
+    </div>
+
+    <!-- QA Answer Panel -->
+    <div id="panel-qa-answer" class="panel">
+        <div class="card">
+            <div class="card-title">Input — simulates a student answering</div>
+            <div class="qa-flow-info">
+                ℹ This test simulates a first answer (turns=0). The LLM will evaluate and score.
+            </div>
+            <label>Student Answer</label>
+            <textarea id="qa-answer-msg">Em sử dụng Flask route decorator @app.route để tạo các endpoint. Mỗi endpoint sẽ gọi function tương ứng để xử lý request. Em dùng SQLAlchemy để query database.</textarea>
+            <label>Project Summary</label>
+            <textarea id="qa-answer-summary" style="min-height:50px">Project quản lý sinh viên sử dụng Python Flask với SQLAlchemy ORM và PostgreSQL.</textarea>
+            <div class="actions">
+                <button class="btn btn-primary" id="qa-answer-btn" onclick="testQAAnswerStream()">▶ Answer Stream</button>
+                <button class="btn btn-danger" id="qa-answer-stop" onclick="stopStream('qa-answer')" style="display:none">⏹ Stop</button>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-title">Streamed Response</div>
+            <div class="status-bar">
+                <div class="status-dot" id="qa-answer-status-dot"></div>
+                <span id="qa-answer-status">Ready</span>
+            </div>
+            <div class="stream-box" id="qa-answer-output"></div>
+            <div class="meta-box" id="qa-answer-meta" style="display:none"></div>
+        </div>
+    </div>
+
+<script>
+const BASE = "http://localhost:8000";
+const controllers = {};
+
+// Sample question bank for QA tests
+const SAMPLE_QUESTION_BANK = [
+    {
+        id: "q1",
+        question: "Em hãy giải thích cách em thiết kế các API endpoint trong project này. Tại sao em chọn cách tổ chức route như vậy?",
+        expected_concepts: ["REST API", "Flask routing", "endpoint design", "separation of concerns"],
+        topic_type: "implementation",
+        max_score: 3,
+        scoring_rubric: {
+            score_3: "Giải thích rõ ràng về thiết kế REST API, tổ chức route hợp lý, có separation of concerns",
+            score_1: "Mô tả được cách tạo route nhưng không giải thích lý do thiết kế",
+            score_0: "Không hiểu về cách tổ chức API endpoint"
+        }
+    },
+    {
+        id: "q2",
+        question: "Em sử dụng ORM nào trong project? Giải thích tại sao em chọn ORM đó và cách em xử lý relationship giữa các model.",
+        expected_concepts: ["SQLAlchemy", "ORM pattern", "model relationships", "foreign keys"],
+        topic_type: "design_decision",
+        max_score: 3,
+        scoring_rubric: {
+            score_3: "Hiểu rõ SQLAlchemy, giải thích relationships và foreign keys",
+            score_1: "Biết dùng ORM nhưng không giải thích được relationships",
+            score_0: "Không hiểu ORM là gì"
+        }
+    }
+];
+
+function switchTab(name) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    event.target.classList.add('active');
+    document.getElementById('panel-' + name).classList.add('active');
+}
+
+function setStatus(prefix, state, text) {
+    const dot = document.getElementById(prefix + '-status-dot');
+    const label = document.getElementById(prefix + '-status');
+    dot.className = 'status-dot ' + state;
+    label.textContent = text;
+}
+
+function stopStream(prefix) {
+    if (controllers[prefix]) {
+        controllers[prefix].abort();
+        delete controllers[prefix];
+    }
+    setStatus(prefix, 'done', 'Stopped');
+    document.getElementById(prefix + '-btn').disabled = false;
+    document.getElementById(prefix + '-stop').style.display = 'none';
+}
+
+async function streamSSE(prefix, url, body) {
+    const output = document.getElementById(prefix + '-output');
+    const meta = document.getElementById(prefix + '-meta');
+    const btn = document.getElementById(prefix + '-btn');
+    const stopBtn = document.getElementById(prefix + '-stop');
+
+    output.innerHTML = '';
+    meta.style.display = 'none';
+    meta.textContent = '';
+    btn.disabled = true;
+    stopBtn.style.display = 'inline-flex';
+    setStatus(prefix, 'streaming', 'Streaming...');
+
+    const controller = new AbortController();
+    controllers[prefix] = controller;
+
+    const cursor = document.createElement('span');
+    cursor.className = 'cursor-blink';
+
+    try {
+        const resp = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+            signal: controller.signal,
+        });
+
+        if (!resp.ok) {
+            const errText = await resp.text();
+            output.textContent = `HTTP ${resp.status}: ${errText}`;
+            setStatus(prefix, 'error', `Error ${resp.status}`);
+            btn.disabled = false;
+            stopBtn.style.display = 'none';
+            return;
+        }
+
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let eventType = '';
+
+        output.appendChild(cursor);
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop(); // keep incomplete line
+
+            for (const line of lines) {
+                if (line.startsWith('event: ')) {
+                    eventType = line.slice(7).trim();
+                } else if (line.startsWith('data: ')) {
+                    const data = JSON.parse(line.slice(6));
+                    if (eventType === 'token') {
+                        // Insert text before cursor
+                        const textNode = document.createTextNode(data.delta);
+                        output.insertBefore(textNode, cursor);
+                        output.scrollTop = output.scrollHeight;
+                    } else if (eventType === 'done') {
+                        meta.style.display = 'block';
+                        meta.textContent = '✅ done event:\n' + JSON.stringify(data, null, 2);
+                    } else if (eventType === 'error') {
+                        output.insertBefore(document.createTextNode('\n❌ ' + data.detail), cursor);
+                        setStatus(prefix, 'error', 'Error');
+                    }
+                }
+            }
+        }
+
+        // Remove cursor
+        if (cursor.parentNode) cursor.remove();
+        setStatus(prefix, 'done', 'Complete ✅');
+    } catch (err) {
+        if (err.name === 'AbortError') {
+            if (cursor.parentNode) cursor.remove();
+            return;
+        }
+        output.textContent = '❌ ' + err.message;
+        setStatus(prefix, 'error', 'Error');
+    } finally {
+        btn.disabled = false;
+        stopBtn.style.display = 'none';
+        delete controllers[prefix];
+    }
+}
+
+function testChatStream() {
+    const query = document.getElementById('chat-query').value;
+    streamSSE('chat', BASE + '/chat/stream', { query });
+}
+
+function testQAStartStream() {
+    const summary = document.getElementById('qa-start-summary').value;
+    const maxQ = parseInt(document.getElementById('qa-start-max').value) || 5;
+    streamSSE('qa-start', BASE + '/qa/start/stream', {
+        question_bank: SAMPLE_QUESTION_BANK,
+        project_summary: summary,
+        max_questions: maxQ,
+    });
+}
+
+function testQAAnswerStream() {
+    const msg = document.getElementById('qa-answer-msg').value;
+    const summary = document.getElementById('qa-answer-summary').value;
+    streamSSE('qa-answer', BASE + '/qa/answer/stream', {
+        user_message: msg,
+        current_question: SAMPLE_QUESTION_BANK[0],
+        current_question_turns: 0,
+        score_locked: null,
+        is_last_question: false,
+        project_summary: summary,
+        history: [],
+    });
+}
+</script>
+</body>
+</html>

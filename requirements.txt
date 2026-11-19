@@ -1,0 +1,30 @@
+# Core dependencies
+openai>=1.0.0
+python-dotenv>=1.0.0
+
+# Vector database
+pymilvus>=2.3.0
+
+# LangChain & LangGraph
+langchain>=0.1.0
+langchain-openai>=0.0.5
+langgraph>=0.0.20
+langchain-community>=0.0.20
+langchain-text-splitters>=0.0.1
+
+# Text processing
+tiktoken>=0.5.0
+
+# Utilities
+requests>=2.31.0
+pydantic>=2.0.0
+
+# API
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+python-multipart>=0.0.6
+
+# PDF Processing (via LangChain)
+pypdf>=3.17.0
+docx2txt>=0.8  # For DOCX extraction
+python-docx>=0.8.11  # For DOCX support

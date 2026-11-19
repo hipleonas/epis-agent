@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: teacher-chatbot-api
+    plan: free
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn api:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: LLM_MODEL
+        value: gpt-4-turbo-preview
+      - key: LLM_TEMPERATURE
+        value: 0.7
+      - key: EMBEDDING_MODEL
+        value: text-embedding-3-small
+      - key: ZILLIZ_CLOUD_URI
+        sync: false
+      - key: ZILLIZ_CLOUD_API_KEY
+        sync: false
+      - key: ZILLIZ_COLLECTION_NAME
+        value: learning_vec
+      - key: VECTOR_DIM
+        value: 1536
+      - key: TOP_K
+        value: 5
